@@ -150,78 +150,70 @@ class WebhookHandler:
         }), 200
     
     def handle_review_event(self, payload: Dict[str, Any]):
-        """
-        Handle pull request review events
-        
-        Args:
-            payload: Webhook payload
-            
-        Returns:
-            JSON response
-        """
-        action = payload.get('action')
-        logger.info(f'Handling pull request review event: {action}')
-        
-        review = payload.get('review', {})
-        review_state = review.get('state')
-        review_body = review.get('body', '')
-        
-        pr = payload.get('pull_request', {})
-        pr_number = pr.get('number')
-        
-        repository = payload.get('repository', {})
-        repo_full_name = repository.get('full_name')
-        
-        logger.info(f'Review on PR #{pr_number}: {review_state}')
-        
-        # If review requests changes and it's from our Review Agent
-        if review_state == 'changes_requested' and 'AI Review Agent' in review_body:
-            installation_id = self.github_auth.get_installation_id_from_payload(payload)
-            
-            if not installation_id:
-                logger.error('No installation ID in payload')
-                return jsonify({'error': 'No installation ID'}), 400
-            
-            try:
-                # Get GitHub client
-                github_client = self.github_auth.get_github_client(installation_id)
-                
-                # Get the linked issue number from PR
-                issue_number = self._extract_issue_number_from_pr(github_client, repo_full_name, pr_number)
-                
-                if issue_number:
-                    # Initialize Code Agent
-                    code_agent = CodeAgent(github_client)
-                    
-                    # Check iteration count to prevent infinite loops
-                    iteration_count = self._get_iteration_count(github_client, repo_full_name, pr_number)
-                    
-                    if iteration_count >= self.max_iterations:
-                        logger.warning(f'Max iterations ({self.max_iterations}) reached for PR #{pr_number}')
-                        return jsonify({
-                            'message': 'Max iterations reached',
-                            'iterations': iteration_count
-                        }), 200
-                    
-                    # Process the review feedback
-                    result = code_agent.process_review_feedback(
-                        repo_full_name=repo_full_name,
-                        pr_number=pr_number,
-                        issue_number=issue_number,
-                        review_body=review_body
-                    )
-                    
-                    if result.get('success'):
-                        logger.info(f'Successfully updated PR #{pr_number}')
-                        return jsonify({
-                            'message': 'Review feedback processed',
-                            'iteration': iteration_count + 1
-                        }), 200
-                    else:
-                        logger.error(f'Failed to process review feedback: {result.get("error")}')
-                        return jsonify({'error': result.get('error')}), 500
-        
-        return jsonify({'message': 'Review event processed'}), 200
+    action = payload.get('action')
+    logger.info(f'Handling pull request review event: {action}')
+
+    review = payload.get('review', {}) or {}
+    review_state = review.get('state')
+    review_body = review.get('body', '') or ''
+
+    pr = payload.get('pull_request', {}) or {}
+    pr_number = pr.get('number')
+
+    repository = payload.get('repository', {}) or {}
+    repo_full_name = repository.get('full_name')
+
+    logger.info(f'Review on PR #{pr_number}: {review_state}')
+
+    if review_state == 'changes_requested' and 'AI Review Agent' in review_body:
+        installation_id = self.github_auth.get_installation_id_from_payload(payload)
+
+        if not installation_id:
+            logger.error('No installation ID in payload')
+            return jsonify({'error': 'No installation ID'}), 400
+
+        try:
+            github_client = self.github_auth.get_github_client(installation_id)
+
+            issue_number = self._extract_issue_number_from_pr(
+                github_client, repo_full_name, pr_number
+            )
+
+            if not issue_number:
+                logger.error(f'No linked issue number found for PR #{pr_number}')
+                return jsonify({'error': 'No linked issue number'}), 400
+
+            code_agent = CodeAgent(github_client)
+            iteration_count = self._get_iteration_count(github_client, repo_full_name, pr_number)
+
+            if iteration_count >= self.max_iterations:
+                logger.warning(f'Max iterations ({self.max_iterations}) reached for PR #{pr_number}')
+                return jsonify({
+                    'message': 'Max iterations reached',
+                    'iterations': iteration_count
+                }), 200
+
+            result = code_agent.process_review_feedback(
+                repo_full_name=repo_full_name,
+                pr_number=pr_number,
+                issue_number=issue_number,
+                review_body=review_body
+            )
+
+            if result.get('success'):
+                logger.info(f'Successfully updated PR #{pr_number}')
+                return jsonify({
+                    'message': 'Review feedback processed',
+                    'iteration': iteration_count + 1
+                }), 200
+
+            logger.error(f'Failed to process review feedback: {result.get("error")}')
+            return jsonify({'error': result.get('error')}), 500
+
+        except Exception:
+            logger.exception('Unhandled error while processing review event')
+            return jsonify({'error': 'Internal server error'}), 500
+
     
     def _extract_issue_number_from_pr(self, github_client, repo_full_name: str, pr_number: int) -> int:
         """
