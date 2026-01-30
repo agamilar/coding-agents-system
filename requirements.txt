@@ -1,0 +1,28 @@
+# Core dependencies
+Flask==3.0.0
+gunicorn==21.2.0
+python-dotenv==1.0.0
+
+# GitHub integration
+PyGithub==2.1.1
+GitPython==3.1.40
+cryptography==41.0.7
+PyJWT==2.8.0
+
+# LLM providers
+openai==1.6.1
+anthropic==0.8.1
+requests==2.31.0
+
+# Code quality tools
+ruff==0.1.9
+black==23.12.1
+mypy==1.8.0
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.23.2
+
+# Utilities
+pyyaml==6.0.1
+pydantic==2.5.3
+pyngrok==7.0.5

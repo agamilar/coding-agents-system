@@ -1,0 +1,150 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    name: Automated Code Review
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyGithub python-dotenv openai anthropic requests
+      
+      - name: Run code quality checks
+        id: quality_checks
+        continue-on-error: true
+        run: |
+          pip install ruff black mypy pytest pytest-cov
+          
+          echo "## Code Quality Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Run ruff
+          echo "### Ruff (Linter)" >> $GITHUB_STEP_SUMMARY
+          if ruff check . --output-format=github; then
+            echo "✅ Ruff passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Ruff found issues" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Run black
+          echo "### Black (Formatter)" >> $GITHUB_STEP_SUMMARY
+          if black --check .; then
+            echo "✅ Black passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Black formatting needed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Run mypy
+          echo "### MyPy (Type Checker)" >> $GITHUB_STEP_SUMMARY
+          if mypy . --ignore-missing-imports; then
+            echo "✅ MyPy passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ MyPy found type issues" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: |
+          pip install pytest pytest-cov
+          
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          
+          if pytest --cov=. --cov-report=term --cov-report=json; then
+            echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract coverage percentage
+            COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+            echo "📊 Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+            echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: AI Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          YANDEX_API_KEY: ${{ secrets.YANDEX_API_KEY }}
+          YANDEX_FOLDER_ID: ${{ secrets.YANDEX_FOLDER_ID }}
+        run: |
+          python - <<'EOF'
+          import os
+          import sys
+          import json
+          from github import Github
+          
+          # Add project to path
+          sys.path.insert(0, os.getcwd())
+          
+          from agents.review_agent import ReviewAgent
+          from github_app.auth import GitHubAppAuth
+          
+          # Get GitHub token
+          github_token = os.environ['GITHUB_TOKEN']
+          github = Github(github_token)
+          
+          # Get PR details from environment
+          repository = os.environ['GITHUB_REPOSITORY']
+          pr_number = int(os.environ['GITHUB_REF'].split('/')[2])
+          
+          # Extract issue number from PR
+          repo = github.get_repo(repository)
+          pr = repo.get_pull(pr_number)
+          
+          issue_number = None
+          if pr.body:
+              import re
+              patterns = [r'Closes #(\d+)', r'Fixes #(\d+)', r'Resolves #(\d+)']
+              for pattern in patterns:
+                  match = re.search(pattern, pr.body)
+                  if match:
+                      issue_number = int(match.group(1))
+                      break
+          
+          # Run review
+          print(f"Running AI review for PR #{pr_number}...")
+          review_agent = ReviewAgent(github)
+          result = review_agent.review_pull_request(
+              repo_full_name=repository,
+              pr_number=pr_number,
+              issue_number=issue_number
+          )
+          
+          if result['success']:
+              print(f"✅ Review completed: {result['assessment']}")
+              sys.exit(0)
+          else:
+              print(f"❌ Review failed: {result.get('error')}")
+              sys.exit(1)
+          EOF
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Code quality checks: ${{ steps.quality_checks.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: ${{ steps.tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage: ${{ steps.tests.outputs.coverage }}%" >> $GITHUB_STEP_SUMMARY
