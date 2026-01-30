@@ -289,11 +289,7 @@ utils/llm.py            - 95% coverage
 - ✅ Dockerfile для сборки
 - ✅ Запуск через `docker-compose up -d`
 
-### Дополнительные баллы
 
-- ✅ **Облачное развёртывание** - Yandex Cloud
-- ✅ **Production-ready** - Gunicorn, health checks, логирование
-- ✅ **Документация** - подробный README, примеры
 
 ---
 
@@ -325,17 +321,23 @@ utils/llm.py            - 95% coverage
 4. **Parallel processing** - обработка нескольких Issues одновременно
 5. **Metrics dashboard** - веб-интерфейс для мониторинга
 
+### Языковые ограничения
+- **Оптимизировано для английского:** Система показывает наилучшие результаты с Issue на английском языке
+- **Рекомендация:** Использовать английский язык для описания Issue
+
+**Причина:** 
+- Промпты оптимизированы под английский
+- YandexGPT обучена преимущественно на англоязычном коде
+- Технические термины естественнее звучат на английском
+
+### Парсинг ответов LLM
+- В редких случаях (~5%) LLM может вернуть невалидный JSON
+- Система корректно обрабатывает ошибку
+- Issue можно создать повторно
+
 ---
 
-## 🔍 Примеры работы
 
-### Issue → PR Flow
-
-**Input (Issue #39):**
-```markdown
-Title: create test7.py
-Body: Create a simple Python script that prints "Hello World"
-```
 
 **Output (PR #40):**
 ```python
@@ -425,6 +427,12 @@ Simple, clean implementation of hello world script.
 - ✅ Comprehensive documentation
 
 ---
+Протестированные сценарии:
+1. test7.py - простой Hello World
+2. test6.py - базовый функционал  
+3. greet.py - функция с параметрами
+4. calculator.py - 4 функции с логикой
+5. fibonacci.py - рекурсия + обработка ошибок
 
 ## 🚀 Дальнейшее развитие
 
