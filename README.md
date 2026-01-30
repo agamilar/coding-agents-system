@@ -1,282 +1,409 @@
-# Coding Agents System - GitHub App для автоматизации SDLC
+# Coding Agents System - Автоматизированная разработка на GitHub
 
-Полностью автоматизированная система для разработки, ревью и итеративного улучшения кода на основе GitHub Issues.
+> **Рабочая система** для автоматического написания кода, code review и итерационного улучшения на основе GitHub Issues. Развёрнута в Yandex Cloud.
 
-## 🎯 Возможности
+## 🎯 Что система умеет
 
-- ✅ **GitHub App** - устанавливается на любой репозиторий одним кликом
-- 🤖 **Code Agent** - автоматически пишет код по описанию из Issue
-- 👀 **Review Agent** - проводит автоматический code review
-- 🔄 **Итеративный процесс** - исправляет код до полного соответствия требованиям
-- 🧪 **Генерация тестов** - создает и дополняет тесты для лучшего покрытия
-- 🚀 **CI/CD интеграция** - не ломает существующие проверки
-- ☁️ **Облачное развертывание** - Cloud.ru / Yandex.Cloud / Docker + ngrok
+- ✅ **Автоматическое написание кода** - создаёт реализацию по описанию из Issue
+- ✅ **Создание Pull Request** - автоматически коммитит и создаёт PR
+- ✅ **Автоматический Code Review** - анализирует код через GitHub Actions
+- ✅ **CI/CD проверки** - запускает ruff, black, mypy, pytest
+- ✅ **GitHub App** - работает через webhook, устанавливается на любой репозиторий
+- ✅ **Облачное развёртывание** - работает 24/7 в Yandex Cloud
+
+## 🚀 Демонстрация работы
+
+### Пример работающей системы
+
+**Issue → Code Agent → Pull Request → Review Agent**
+
+**Репозиторий для демонстрации:** https://github.com/agamilar/ai-test
+
+### Живой пример
+
+1. **Создаём Issue:**
+   ```markdown
+   Title: Create a simple Python script that prints "Hello World"
+   Body: Create test7.py with hello world functionality
+   ```
+
+2. **Code Agent автоматически создаёт PR** с кодом:
+   ```python
+   print('Hello World')
+   ```
+
+3. **Review Agent запускается через GitHub Actions** и проверяет:
+   - Качество кода (ruff, black, mypy)
+   - Тесты и покрытие
+   - Соответствие требованиям Issue
+
+4. **Результат:** PR с рабочим кодом готов к мёржу ✅
 
 ## 🏗️ Архитектура
 
 ```
-┌─────────────┐
-│   GitHub    │
-│   Issue     │
-└──────┬──────┘
-       │
-       │ Webhook
-       ▼
 ┌─────────────────┐
-│  GitHub App     │
-│   (Flask)       │
-└──────┬──────────┘
-       │
-       │ Triggers
-       ▼
-┌─────────────────┐     ┌──────────────────┐
-│   Code Agent    │────▶│  GitHub API      │
-│   (Writes Code) │     │  (Create PR)     │
-└─────────────────┘     └──────────────────┘
-       │
-       │ Creates PR
-       ▼
-┌─────────────────┐
-│  GitHub Actions │
-│    Workflow     │
-└──────┬──────────┘
-       │
-       │ Runs
-       ▼
-┌─────────────────┐     ┌──────────────────┐
-│  Review Agent   │────▶│  Post Review     │
-│  (Analyzes)     │     │  Comment         │
-└─────────────────┘     └──────────────────┘
-       │
-       │ If needs fixes
-       ▼
-┌─────────────────┐
-│  Code Agent     │
-│  (Iteration)    │
-└─────────────────┘
+│  GitHub Issue   │
+│  "Create X"     │
+└────────┬────────┘
+         │
+         │ Webhook (POST /webhook)
+         ▼
+┌─────────────────────────────┐
+│    GitHub App (Yandex VM)   │
+│  Flask/Gunicorn на :3000    │
+│  ├─ Code Agent              │
+│  ├─ Webhook Handler         │
+│  └─ GitHub API Integration  │
+└────────┬────────────────────┘
+         │
+         │ 1. Анализирует Issue
+         │ 2. Генерирует код (YandexGPT)
+         │ 3. Создаёт branch
+         │ 4. Коммитит файлы
+         │ 5. Создаёт Pull Request
+         ▼
+┌─────────────────────────────┐
+│       Pull Request          │
+│  branch: issue-39-timestamp │
+│  files: test7.py            │
+└────────┬────────────────────┘
+         │
+         │ Trigger: pull_request [opened, synchronize]
+         ▼
+┌──────────────────────────────┐
+│    GitHub Actions Workflow   │
+│  (.github/workflows/review)  │
+│  ├─ Code quality (ruff, etc) │
+│  ├─ Tests (pytest)           │
+│  └─ Review Agent             │
+└────────┬─────────────────────┘
+         │
+         │ 1. Проверяет код
+         │ 2. Анализирует через LLM
+         │ 3. Пишет комментарий
+         ▼
+┌─────────────────────────────┐
+│    Review Comment in PR     │
+│  ✅ Approved / ❌ Changes   │
+└─────────────────────────────┘
 ```
 
-## 🚀 Быстрый старт
+## 📋 Технический стек
 
-### Локальное развертывание с Docker
+| Компонент | Технология |
+|-----------|------------|
+| **Язык** | Python 3.11 |
+| **LLM** | YandexGPT (yandexgpt-lite) |
+| **Web Framework** | Flask + Gunicorn |
+| **GitHub Integration** | PyGithub, GitHub App |
+| **CI/CD** | GitHub Actions |
+| **Code Quality** | ruff, black, mypy |
+| **Testing** | pytest, pytest-cov |
+| **Deploy** | Docker + Docker Compose |
+| **Cloud** | Yandex Cloud (VM) |
+
+## 🚀 Развёртывание
+
+### Требования
+
+- Python 3.11+
+- Docker + Docker Compose
+- GitHub App credentials
+- YandexGPT API key
+
+### Быстрый старт
 
 ```bash
 # 1. Клонируйте репозиторий
-git clone <your-repo>
+git clone https://github.com/your-username/coding-agents-system
 cd coding-agents-system
 
-# 2. Настройте переменные окружения
+# 2. Создайте .env файл
 cp .env.example .env
-# Отредактируйте .env и добавьте ваши токены
 
-# 3. Запустите систему
+# 3. Отредактируйте .env (добавьте токены)
+nano .env
+
+# 4. Создайте директорию для ключей
+mkdir -p keys
+
+# 5. Скопируйте приватный ключ GitHub App
+cp /path/to/your/private-key.pem keys/private-key.pem
+
+# 6. Запустите систему
 docker-compose up -d
 
-# 4. Настройте туннелирование (в отдельном терминале)
-docker-compose exec app python -m utils.tunnel
+# 7. Проверьте логи
+docker-compose logs -f app
 ```
 
-### Развертывание в облаке
+### Переменные окружения
 
-#### Cloud.ru
+```env
+# GitHub App Configuration
+GITHUB_APP_ID=123456
+GITHUB_APP_PRIVATE_KEY_PATH=/app/keys/private-key.pem
+GITHUB_WEBHOOK_SECRET=your_webhook_secret
+GITHUB_INSTALLATION_ID=your_installation_id
 
-```bash
-# 1. Создайте виртуальную машину в Cloud.ru
-# 2. Подключитесь по SSH
-# 3. Установите Docker и Docker Compose
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
+# YandexGPT Configuration
+YANDEX_API_KEY=your_yandex_api_key
+YANDEX_FOLDER_ID=your_yandex_folder_id
+YANDEX_MODEL=yandexgpt-lite
 
-# 4. Клонируйте и запустите
-git clone <your-repo>
-cd coding-agents-system
-docker-compose up -d
-```
+# Optional: OpenAI или Anthropic
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
 
-#### Yandex.Cloud
+# Agent Configuration
+CODE_AGENT_TEMPERATURE=0.3
+REVIEW_AGENT_TEMPERATURE=0.2
+MAX_ITERATIONS=5
+MIN_TEST_COVERAGE=80
 
-```bash
-# 1. Создайте виртуальную машину в Yandex.Cloud
-# 2. Используйте образ с предустановленным Docker
-# 3. Настройте группу безопасности для портов 3000, 80, 443
-# 4. Запустите приложение
-docker-compose up -d
+# Server Configuration
+FLASK_PORT=3000
+FLASK_HOST=0.0.0.0
+LOG_LEVEL=INFO
 ```
 
 ## 🔧 Настройка GitHub App
 
 ### Шаг 1: Создание GitHub App
 
-1. Перейдите в Settings → Developer settings → GitHub Apps → New GitHub App
+1. Перейдите: Settings → Developer settings → GitHub Apps → **New GitHub App**
+
 2. Заполните форму:
-   - **GitHub App name**: Coding Agents System
-   - **Homepage URL**: `https://your-domain.com` или `https://your-ngrok-url.ngrok.io`
-   - **Webhook URL**: `https://your-domain.com/webhook`
-   - **Webhook secret**: Сгенерируйте секретный ключ
-   
-3. Настройте права доступа:
-   - **Repository permissions**:
-     - Contents: Read & Write
-     - Issues: Read & Write
-     - Pull requests: Read & Write
-     - Workflows: Read & Write
-     - Metadata: Read-only
-   - **Subscribe to events**:
-     - Issues
-     - Pull request
-     - Pull request review
-     - Push
+   - **Name**: Coding Agents System
+   - **Homepage URL**: `http://your-vm-ip:3000`
+   - **Webhook URL**: `http://your-vm-ip:3000/webhook`
+   - **Webhook secret**: Сгенерируйте случайную строку
 
-4. Создайте и скачайте приватный ключ (.pem файл)
+3. **Repository permissions:**
+   - Contents: **Read & Write**
+   - Issues: **Read & Write**
+   - Pull requests: **Read & Write**
+   - Metadata: **Read-only**
 
-### Шаг 2: Конфигурация
+4. **Subscribe to events:**
+   - ✅ Issues
+   - ✅ Pull request
+   - ✅ Pull request review
 
-Создайте `.env` файл:
+5. Создайте и скачайте **Private key** (.pem файл)
 
-```env
-# GitHub App Configuration
-GITHUB_APP_ID=your_app_id
-GITHUB_APP_PRIVATE_KEY_PATH=/app/keys/private-key.pem
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
+### Шаг 2: Установка App в репозиторий
 
-# LLM Configuration (выберите один)
-OPENAI_API_KEY=your_openai_key
-# или
-YANDEX_API_KEY=your_yandex_key
-YANDEX_FOLDER_ID=your_folder_id
+1. После создания App нажмите **Install App**
+2. Выберите репозиторий для установки
+3. Скопируйте **Installation ID** из URL
 
-# Tunnel (для локальной разработки)
-USE_NGROK=true
-NGROK_AUTH_TOKEN=your_ngrok_token
+### Шаг 3: Добавьте секреты в GitHub Actions
 
-# Optional
-MAX_ITERATIONS=5
-LOG_LEVEL=INFO
-```
-
-### Шаг 3: Установка в репозиторий
-
-1. Перейдите на страницу вашего GitHub App
-2. Нажмите "Install App"
-3. Выберите репозитории для установки
-4. Готово! 🎉
+В настройках репозитория добавьте secrets:
+- `YANDEX_API_KEY`
+- `YANDEX_FOLDER_ID`
+- `OPENAI_API_KEY` (опционально)
+- `ANTHROPIC_API_KEY` (опционально)
 
 ## 📝 Использование
 
-### Создание задачи
+### Создание Issue
 
-Создайте Issue в вашем репозитории с описанием задачи:
+Создайте Issue с описанием задачи:
 
 ```markdown
-Название: Добавить функцию расчета факториала
+Title: Create calculator module
 
-Описание:
-Необходимо реализовать функцию `factorial(n)` которая:
-- Принимает целое число n >= 0
-- Возвращает факториал числа
-- Обрабатывает ошибки для отрицательных чисел
-- Покрыта unit-тестами
+Body:
+Create a Python module `calculator.py` with the following functions:
+- add(a, b) - returns sum of a and b
+- subtract(a, b) - returns difference
+- multiply(a, b) - returns product
+- divide(a, b) - returns quotient (handle division by zero)
+
+Include unit tests for all functions.
 ```
 
-### Автоматический процесс
+### Что происходит дальше
 
-1. **Code Agent** получает Issue и создает PR с кодом
-2. **GitHub Actions** запускает CI/CD и Review Agent
-3. **Review Agent** анализирует код и пишет review
-4. Если есть замечания, **Code Agent** делает новую итерацию
-5. Процесс повторяется до успешного прохождения всех проверок
-6. PR готов к слиянию ✅
-
-## 🧪 Тестирование
-
-```bash
-# Запуск всех тестов
-docker-compose exec app pytest
-
-# Запуск с покрытием
-docker-compose exec app pytest --cov=app --cov-report=html
-
-# Проверка кода
-docker-compose exec app ruff check .
-docker-compose exec app black --check .
-docker-compose exec app mypy .
-```
+1. ✅ **Code Agent получает webhook** от GitHub
+2. ✅ **Анализирует Issue** через YandexGPT
+3. ✅ **Генерирует код** (`calculator.py` и `test_calculator.py`)
+4. ✅ **Создаёт branch** (`issue-42-20260130-120000`)
+5. ✅ **Коммитит файлы** в новый branch
+6. ✅ **Создаёт Pull Request**
+7. ✅ **GitHub Actions запускает Review Agent**
+8. ✅ **Review Agent проверяет** код и тесты
+9. ✅ **Пишет review комментарий** в PR
 
 ## 🛠️ Структура проекта
 
 ```
 coding-agents-system/
-├── app/
-│   ├── __init__.py
-│   └── main.py              # Flask приложение (GitHub App)
 ├── agents/
-│   ├── __init__.py
-│   ├── code_agent.py        # Агент для написания кода
-│   ├── review_agent.py      # Агент для ревью кода
-│   └── prompts.py           # Промпты для LLM
+│   ├── code_agent.py       # ✅ Генерирует код по Issue
+│   ├── review_agent.py     # ✅ Проводит code review
+│   └── prompts.py          # ✅ Промпты для LLM
+├── app/
+│   └── main.py             # ✅ Flask app + webhook handler
 ├── github_app/
-│   ├── __init__.py
-│   ├── auth.py              # Аутентификация GitHub App
-│   ├── webhook.py           # Обработка webhook
-│   └── api.py               # Работа с GitHub API
+│   ├── auth.py             # ✅ GitHub App authentication
+│   ├── api.py              # ✅ GitHub API helpers
+│   └── webhook.py          # ✅ Webhook processing
 ├── utils/
-│   ├── __init__.py
-│   ├── llm.py               # Интеграция с LLM
-│   ├── git_helper.py        # Работа с Git
-│   └── tunnel.py            # Настройка ngrok
-├── tests/
-│   ├── test_code_agent.py
-│   ├── test_review_agent.py
-│   └── test_integration.py
-├── .github/
-│   └── workflows/
-│       └── review.yml       # Workflow для Review Agent
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── requirements.txt
-├── .env.example
-└── README.md
+│   ├── llm.py              # ✅ YandexGPT/OpenAI/Anthropic client
+│   ├── git_helper.py       # Git operations
+│   └── tunnel.py           # ngrok tunnel (dev)
+├── .github/workflows/
+│   └── review.yml          # ✅ GitHub Actions workflow
+├── docker-compose.yml      # ✅ Docker setup
+├── Dockerfile              # ✅ Container image
+├── requirements.txt        # ✅ Python dependencies
+└── .env.example            # Environment template
 ```
 
-## 🔒 Безопасность
-
-- ✅ Все секретные ключи хранятся в переменных окружения
-- ✅ Webhook подписи проверяются
-- ✅ GitHub App использует временные токены
-- ✅ Приватный ключ монтируется как volume (не в образе)
-
-## 📊 Мониторинг
-
-Логи доступны через Docker:
+## 🧪 Тестирование
 
 ```bash
-# Все логи
-docker-compose logs -f
+# Запуск тестов
+docker-compose exec app pytest
 
-# Только app
+# С покрытием
+docker-compose exec app pytest --cov=. --cov-report=html
+
+# Проверка качества кода
+docker-compose exec app ruff check .
+docker-compose exec app black --check .
+docker-compose exec app mypy . --ignore-missing-imports
+```
+
+## 📊 Мониторинг и логи
+
+```bash
+# Просмотр логов в реальном времени
 docker-compose logs -f app
 
 # Последние 100 строк
 docker-compose logs --tail=100 app
+
+# Проверка статуса
+docker-compose ps
+
+# Перезапуск
+docker-compose restart app
 ```
 
-## 🤝 Вклад в проект
+## 🎯 Что реализовано (чеклист)
 
-1. Форкните репозиторий
-2. Создайте ветку (`git checkout -b feature/amazing-feature`)
-3. Закоммитьте изменения (`git commit -m 'Add amazing feature'`)
-4. Запушьте ветку (`git push origin feature/amazing-feature`)
+### Core функциональность
+- ✅ GitHub App с webhook обработкой
+- ✅ Code Agent (генерирует код по Issue)
+- ✅ Review Agent (анализирует PR)
+- ✅ Создание Pull Request автоматически
+- ✅ GitHub Actions workflow для CI/CD
+- ✅ Интеграция с YandexGPT
+
+### CI/CD
+- ✅ Автоматический запуск проверок на PR
+- ✅ Code quality checks (ruff, black, mypy)
+- ✅ Автоматический запуск тестов (pytest)
+- ✅ Coverage reporting
+- ✅ AI-powered code review
+
+### Deployment
+- ✅ Docker + Docker Compose
+- ✅ Развёртывание в Yandex Cloud
+- ✅ Production-ready setup (Gunicorn)
+- ✅ Health check endpoint
+
+### Известные ограничения
+- ⚠️ Итерационный цикл (Code Agent реагирует на Review) - частично реализован
+- ⚠️ Автоматическая генерация тестов - базовая реализация
+- ⚠️ Адаптация существующих тестов - требует доработки
+
+## 🔒 Безопасность
+
+- ✅ Приватный ключ монтируется через volume (не в образе)
+- ✅ Секреты хранятся в переменных окружения
+- ✅ Webhook подписи проверяются
+- ✅ GitHub App токены временные (срок действия 1 час)
+
+## 🚀 Развёртывание в Yandex Cloud
+
+### Пошаговая инструкция
+
+```bash
+# 1. Создайте VM в Yandex Cloud
+#    - OS: Ubuntu 22.04 LTS
+#    - vCPU: 2, RAM: 4GB, Disk: 20GB
+#    - Публичный IP: Да
+
+# 2. Подключитесь по SSH
+ssh ubuntu@<your-vm-ip>
+
+# 3. Установите Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 4. Установите Docker Compose
+sudo apt-get update
+sudo apt-get install docker-compose-plugin
+
+# 5. Клонируйте проект
+git clone https://github.com/your-username/coding-agents-system
+cd coding-agents-system
+
+# 6. Настройте .env и ключи
+nano .env
+mkdir keys
+nano keys/private-key.pem  # Вставьте содержимое .pem файла
+
+# 7. Запустите
+docker-compose up -d
+
+# 8. Проверьте
+docker-compose logs -f app
+curl http://localhost:3000/health
+```
+
+### Настройка firewall в Yandex Cloud
+
+В настройках Security Group разрешите:
+- Port 3000 (webhook)
+- Port 22 (SSH)
+
+## 📖 Примеры использования
+
+См. примеры реальной работы системы:
+- Репозиторий: https://github.com/agamilar/ai-test
+- Issues: https://github.com/agamilar/ai-test/issues
+- Pull Requests: https://github.com/agamilar/ai-test/pulls
+
+## 🤝 Участие в разработке
+
+Мы открыты для вклада! Если вы хотите улучшить проект:
+
+1. Fork репозитория
+2. Создайте feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit изменений (`git commit -m 'Add amazing feature'`)
+4. Push в branch (`git push origin feature/amazing-feature`)
 5. Откройте Pull Request
 
 ## 📄 Лицензия
 
-MIT License
+MIT License - см. файл [LICENSE](LICENSE)
 
-## 🙋 Поддержка
+## 📧 Контакты
 
-Если возникли вопросы или проблемы, создайте Issue в этом репозитории.
+- GitHub: [@agamilar](https://github.com/agamilar)
+- Issues: [Создать Issue](https://github.com/agamilar/coding-agents-system/issues)
 
-## 🎓 Примеры использования
+---
 
-См. директорию `examples/` с примерами Issues и соответствующих Pull Requests.
+**Made with ❤️ for Мегашкола Coding Agents track**
+
+*Система полностью работает и готова к использованию. Развёрнута в production в Yandex Cloud.*
