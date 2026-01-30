@@ -383,15 +383,6 @@ curl http://localhost:3000/health
 - Issues: https://github.com/agamilar/ai-test/issues
 - Pull Requests: https://github.com/agamilar/ai-test/pulls
 
-## 🤝 Участие в разработке
-
-Мы открыты для вклада! Если вы хотите улучшить проект:
-
-1. Fork репозитория
-2. Создайте feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit изменений (`git commit -m 'Add amazing feature'`)
-4. Push в branch (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request
 
 ## 📄 Лицензия
 
