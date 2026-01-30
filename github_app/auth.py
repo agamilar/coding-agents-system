@@ -58,36 +58,19 @@ class GitHubAppAuth:
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
         logger.debug('Generated JWT token')
         return token
-    
+        
     def get_installation_token(self, installation_id: str) -> str:
-        """
-        Get installation access token for a specific installation
-        
-        Args:
-            installation_id: GitHub App installation ID
-            
-        Returns:
-            Installation access token
-        
-        """
+        """Get installation access token for a specific installation"""
         try:
-            # Create GitHub instance with JWT
-            jwt_token = self.generate_jwt()
-            auth = Auth.AppAuth(self.app_id, self.private_key)
-            github_app = Github(auth=auth)
-            
-            # Get installation
-            installation = github_app.get_app().get_installation(int(installation_id))
-            
-            # Get access token
-            access_token = installation.get_access_token()
+            integration = GithubIntegration(self.app_id, self.private_key)
+            access = integration.get_access_token(int(installation_id))
             logger.info(f'Retrieved installation token for installation {installation_id}')
-            
-            return access_token.token
-        
+            return access.token
         except Exception as e:
             logger.error(f'Error getting installation token: {str(e)}')
             raise
+
+
     
     def get_github_client(self, installation_id: str) -> Github:
         """
