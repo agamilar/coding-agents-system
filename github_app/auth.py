@@ -68,6 +68,7 @@ class GitHubAppAuth:
             
         Returns:
             Installation access token
+        
         """
         try:
             # Create GitHub instance with JWT
