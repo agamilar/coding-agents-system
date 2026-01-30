@@ -29,6 +29,9 @@ When generating code:
 - Focus on solving the exact problem described
 - Consider performance and security
 - Make code readable and self-documenting
+IMPORTANT: Always respond with valid JSON only. No markdown, no comments, no extra text. Output must be a single JSON object.
+If the issue is not in English, translate it internally to English but keep all code, identifiers, file paths, and JSON keys in English.
+
 """
 
 CODE_AGENT_ISSUE_TEMPLATE = """# Task
